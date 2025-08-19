@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Tenuki Test</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            padding: 10px; /* 50% of 20px */
+            font-size: 12px; /* 50% smaller */
+            max-width: 400px; /* Smaller max width */
+            margin: 0 auto;
+        }
+        h1 { font-size: 16px; margin: 10px 0; } /* 50% smaller */
+        h3 { font-size: 12px; margin: 5px 0; } /* 50% smaller */
+        .debug { 
+            background: #f0f0f0; 
+            padding: 5px; /* 50% of 10px */
+            margin: 5px 0; /* 50% of 10px 0 */
+            font-size: 10px; /* 50% smaller */
+            border-radius: 2px;
+        }
+        .board-container { 
+            margin: 10px 0; /* 50% of 20px 0 */
+            text-align: center;
+        }
+        .tenuki-board {
+            border: 1px solid #8B4513; /* 50% thinner */
+            border-radius: 4px; /* 50% of 8px */
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2); /* 50% smaller */
+            margin: 0 auto;
+            transform: scale(0.4); /* Scale board to 40% for test page */
+            transform-origin: center center;
+        }
+    </style>
+    <link rel="stylesheet" href="build/dom-renderer.css">
+    <link rel="stylesheet" href="build/renderer-cancel-button.css">
+</head>
+<body>
+    <h1>Tenuki Test</h1>
+    
+    <div class="debug">
+        <h3>Loading:</h3>
+        <div id="loading-status">Checking...</div>
+    </div>
+    
+    <div class="debug">
+        <h3>Library:</h3>
+        <div id="library-status">Checking...</div>
+    </div>
+    
+    <div class="board-container">
+        <h3>Go Board:</h3>
+        <div id="board-element" class="tenuki-board tenuki-dom-renderer"></div>
+    </div>
+    
+    <script src="build/tenuki.js"></script>
+    <script>
+        console.log("Script loaded");
+        
+        document.getElementById('loading-status').textContent = 'Script loaded';
+        
+        if (typeof tenuki !== 'undefined') {
+            document.getElementById('library-status').textContent = 'tenuki found: ' + typeof tenuki;
+            console.log('tenuki:', tenuki);
+            console.log('Properties:', Object.keys(tenuki));
+            
+            try {
+                const boardElement = document.getElementById('board-element');
+                console.log('Creating game with element:', boardElement);
+                
+                const game = new tenuki.Game({ 
+                    element: boardElement,
+                    boardSize: 9,
+                    renderer: 'dom'
+                });
+                
+                console.log('Game created:', game);
+                document.getElementById('library-status').textContent += ' - Game created!';
+                
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('library-status').textContent += ' - Error: ' + error.message;
+            }
+        } else {
+            document.getElementById('library-status').textContent = 'tenuki NOT found!';
+            console.error('tenuki is not defined');
+        }
+    </script>
+</body>
+</html> 

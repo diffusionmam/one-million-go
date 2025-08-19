@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tenuki Go - Legacy Code Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px; /* 50% of 1200px */
+            margin: 0 auto;
+            padding: 10px; /* 50% of 20px */
+            background-color: #f5f5f5;
+            font-size: 12px; /* 50% smaller base font */
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 15px; /* 50% of 30px */
+        }
+        .header h1 {
+            font-size: 18px; /* 50% smaller */
+            margin: 10px 0;
+        }
+        .header p {
+            font-size: 11px;
+        }
+        .demo-container {
+            display: flex;
+            gap: 15px; /* 50% of 30px */
+            align-items: flex-start;
+        }
+        .board-container {
+            flex: 1;
+            background: white;
+            padding: 10px; /* 50% of 20px */
+            border-radius: 4px; /* 50% of 8px */
+            box-shadow: 0 1px 5px rgba(0,0,0,0.1); /* 50% smaller shadow */
+        }
+        .board-container h2 {
+            font-size: 14px; /* 50% smaller */
+            margin: 5px 0;
+        }
+        .controls {
+            flex: 0 0 150px; /* 50% of 300px */
+            background: white;
+            padding: 10px; /* 50% of 20px */
+            border-radius: 4px; /* 50% of 8px */
+            box-shadow: 0 1px 5px rgba(0,0,0,0.1);
+        }
+        .control-group {
+            margin-bottom: 10px; /* 50% of 20px */
+        }
+        .control-group h3 {
+            margin-top: 0;
+            color: #333;
+            font-size: 12px; /* 50% smaller */
+        }
+        button {
+            background: #007cba;
+            color: white;
+            border: none;
+            padding: 5px 7px; /* 50% of 10px 15px */
+            border-radius: 2px; /* 50% of 4px */
+            cursor: pointer;
+            margin: 2px; /* 50% of 5px */
+            font-size: 10px; /* 50% smaller */
+        }
+        button:hover {
+            background: #005a8b;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .status {
+            background: #e8f4f8;
+            padding: 7px; /* 50% of 15px */
+            border-radius: 2px; /* 50% of 4px */
+            margin-bottom: 10px; /* 50% of 20px */
+            font-size: 10px;
+        }
+        .status h3 {
+            font-size: 11px;
+            margin: 0 0 5px 0;
+        }
+        .tenuki-board {
+            margin: 0 auto;
+            border: 1px solid #8B4513; /* 50% thinner border */
+            border-radius: 4px; /* 50% of 8px */
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2); /* 50% smaller shadow */
+            transform: scale(0.5); /* Scale entire board to 50% */
+            transform-origin: center center;
+        }
+        .info-box {
+            background: #f9f9f9;
+            padding: 5px; /* 50% of 10px */
+            border-radius: 2px; /* 50% of 4px */
+            margin: 5px 0; /* 50% of 10px 0 */
+            font-size: 8px; /* 50% of 14px */
+            line-height: 1.3;
+        }
+        .debug {
+            background: #ffe6e6;
+            padding: 5px; /* 50% of 10px */
+            border-radius: 2px; /* 50% of 4px */
+            margin: 5px 0; /* 50% of 10px 0 */
+            font-size: 8px; /* 50% of 12px */
+            font-family: monospace;
+        }
+    </style>
+    <!-- Load the CSS for DOM renderer - using the properly compiled CSS -->
+    <link rel="stylesheet" href="build/dom-renderer.css">
+    <link rel="stylesheet" href="build/renderer-cancel-button.css">
+</head>
+<body>
+    <div class="header">
+        <h1>🪨 Tenuki Go - Legacy Code Demo 🪨</h1>
+        <p>Complete web-based Go/Baduk/Weiqi implementation</p>
+    </div>
+
+    <div class="demo-container">
+        <div class="board-container">
+            <h2>Go Board</h2>
+            <div class="debug">
+                Debug: <span id="debug-info">Initializing...</span>
+            </div>
+            <div id="go-board" class="tenuki-board tenuki-dom-renderer"></div>
+        </div>
+
+        <div class="controls">
+            <div class="status">
+                <h3>Game Status</h3>
+                <div id="current-player">Player: Loading...</div>
+                <div id="move-number">Move: 0</div>
+                <div id="game-phase">Phase: Init</div>
+            </div>
+
+            <div class="control-group">
+                <h3>Controls</h3>
+                <button onclick="passMove()" id="pass-btn">Pass</button>
+                <button onclick="undoMove()" id="undo-btn">Undo</button>
+                <button onclick="newGame()" id="new-btn">New</button>
+            </div>
+
+            <div class="control-group">
+                <h3>Board Size</h3>
+                <button onclick="setBoardSize(9)">9x9</button>
+                <button onclick="setBoardSize(13)">13x13</button>
+                <button onclick="setBoardSize(19)">19x19</button>
+            </div>
+
+            <div class="control-group">
+                <h3>Features</h3>
+                <div class="info-box">
+                    ✅ Complete Go rules<br>
+                    ✅ Stone placement & capture<br>
+                    ✅ Ko rule enforcement<br>
+                    ✅ Territory calculation<br>
+                    ✅ Touch/mouse input<br>
+                    ✅ Multiple board sizes<br>
+                    ✅ Professional rendering
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>Ready</h3>
+                <div class="info-box">
+                    This Tenuki library is ready for integration into your <strong>One Million Go</strong> project!
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load the built Tenuki JavaScript -->
+    <script src="build/tenuki.js"></script>
+    
+    <script>
+        // Global variables
+        let game = null;
+        let boardElement = null;
+
+        function debugLog(message) {
+            console.log(message);
+            const debugEl = document.getElementById('debug-info');
+            if (debugEl) {
+                debugEl.textContent = message;
+            }
+        }
+
+        function updateStatus() {
+            if (!game) return;
+
+            try {
+                const isBlackPlaying = game.isBlackPlaying();
+                document.getElementById('current-player').textContent = 
+                    `Player: ${isBlackPlaying ? 'Black' : 'White'}`;
+                
+                document.getElementById('move-number').textContent = 
+                    `Move: ${game.moveNumber()}`;
+                
+                document.getElementById('game-phase').textContent = 
+                    `Phase: ${game.isOver() ? 'Over' : 'Play'}`;
+                    
+                debugLog(`Move ${game.moveNumber()}, ${isBlackPlaying ? 'Black' : 'White'} to play`);
+            } catch (error) {
+                debugLog('Error updating status: ' + error.message);
+            }
+        }
+
+        function initGame(boardSize = 19) {
+            try {
+                debugLog(`Init ${boardSize}x${boardSize} board...`);
+                
+                // Clear the board element
+                boardElement.innerHTML = '';
+                
+                // Create new game instance with proper renderer options
+                game = new tenuki.Game({ 
+                    element: boardElement,
+                    boardSize: boardSize,
+                    renderer: 'dom'  // Explicitly use DOM renderer for proper styling
+                });
+
+                debugLog('Game created successfully!');
+                updateStatus();
+                
+            } catch (error) {
+                debugLog('Error: ' + error.message);
+                console.error('Error creating game:', error);
+            }
+        }
+
+        function passMove() {
+            if (!game) return;
+            try {
+                game.pass();
+                updateStatus();
+                debugLog('Pass move made');
+            } catch (error) {
+                debugLog('Error making pass: ' + error.message);
+            }
+        }
+
+        function undoMove() {
+            if (!game) return;
+            try {
+                game.undo();
+                updateStatus();
+                debugLog('Move undone');
+            } catch (error) {
+                debugLog('Error undoing move: ' + error.message);
+            }
+        }
+
+        function newGame() {
+            if (!game) {
+                initGame();
+                return;
+            }
+            
+            try {
+                const currentSize = game.boardSize || 19;
+                initGame(currentSize);
+                debugLog('New game started');
+            } catch (error) {
+                debugLog('Error starting new game: ' + error.message);
+            }
+        }
+
+        function setBoardSize(size) {
+            try {
+                initGame(size);
+                debugLog(`Changed to ${size}x${size}`);
+            } catch (error) {
+                debugLog('Error changing board size: ' + error.message);
+            }
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            debugLog('DOM loaded');
+            
+            boardElement = document.getElementById('go-board');
+            if (!boardElement) {
+                debugLog('ERROR: Board element not found!');
+                return;
+            }
+            
+            if (typeof tenuki === 'undefined') {
+                debugLog('ERROR: Tenuki library not loaded!');
+                return;
+            }
+            
+            debugLog('Tenuki loaded: ' + Object.keys(tenuki).join(', '));
+            
+            // Initialize the game
+            initGame();
+        });
+
+        // Add click handler to update status after moves
+        document.addEventListener('click', function() {
+            setTimeout(updateStatus, 100);
+        });
+    </script>
+</body>
+</html> 
