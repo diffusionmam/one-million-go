@@ -39,17 +39,16 @@ This legacy Tenuki Go library has been successfully modernized and is ready for 
    ```
 
 4. **Open in browser:**
-   - **Full Demo**: http://localhost:8080/demo.html
-   - **Simple Test**: http://localhost:8080/test.html
+   - **Full Demo**: https://diffusionmam.github.io/one-million-go/
 
 ## 📁 Project Structure
 
 ```
 frontend/
-├── build/           # Compiled CSS and JS files
+├── build/          # Compiled CSS and JS files
 ├── src/            # Source TypeScript/JavaScript files  
 ├── scss/           # SCSS styling source files
-├── demo.html       # Complete demo with all features
+├── index.html      # Complete demo with all features
 ├── test.html       # Simple test page
 ├── package.json    # Dependencies and build scripts
 └── README.md       # This file
