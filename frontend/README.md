@@ -1,6 +1,6 @@
 # Tenuki Go - Legacy Code Demo
 
-A complete web-based Go/Baduk/Weiqi library successfully restored and running.
+A complete web-based Go/Baduk/Weiqi library successfully restored and running. Inspired from the original project: https://github.com/aprescott/tenuki.git
 
 ## 🎯 Project Status: FULLY OPERATIONAL
 
