@@ -1,109 +1,194 @@
-# Tenuki Go - Legacy Code Demo
+# CLAUDE.md
 
-A complete web-based Go/Baduk/Weiqi library successfully restored and running. Inspired from the original project: https://github.com/aprescott/tenuki.git
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## 🎯 Project Status: FULLY OPERATIONAL
+## Project Overview
 
-This legacy Tenuki Go library has been successfully modernized and is ready for integration into the **One Million Go** project.
+This is the "One Million Go" project - a massively multiplayer web-based Go/Baduk game that scales from a single Tenuki Go board to a 1,000,000 board grid system. The project successfully restored legacy Tenuki code and built a sophisticated multi-layer rendering system on top of it.
 
-## 🎮 Features
+## Key Commands
 
-- ✅ **Complete Go Rules Engine** - Stone placement, capture, ko rule, territory
-- ✅ **Multiple Board Sizes** - 9×9, 13×13, 19×19 boards  
-- ✅ **Professional Rendering** - Wooden board with proper stone graphics
-- ✅ **Interactive Controls** - Pass, Undo, New Game functionality
-- ✅ **Touch/Mouse Support** - Responsive input for all devices
-- ✅ **Real-time Status** - Live game state and move tracking
+### Development Workflow
+```bash
+# Change to the project directory
+cd /home/atharva/projects/one-million-go/one-million-go/root
 
-## 🚀 Quick Start
+# Install dependencies
+npm install
 
-### Prerequisites
-- Node.js (v16+)
-- Python 3
+# Build the library (JavaScript and CSS)
+npm run build
 
-### Setup & Run
+# Build JavaScript only
+npm run build:js
 
-1. **Install dependencies:**
-   ```bash
-   npm install
-   ```
+# Build CSS from SCSS only  
+npm run build:css
 
-2. **Build the library:**
-   ```bash
-   npm run build
-   ```
+# Run tests
+npm test
 
-3. **Start the demo server:**
-   ```bash
-   python3 -m http.server 8080
-   ```
-
-4. **Open in browser:**
-   - **Full Demo**: https://diffusionmam.github.io/one-million-go/
-
-## 📁 Project Structure
-
-```
-frontend/
-├── build/          # Compiled CSS and JS files
-├── src/            # Source TypeScript/JavaScript files  
-├── scss/           # SCSS styling source files
-├── index.html      # Complete demo with all features
-├── test.html       # Simple test page
-├── package.json    # Dependencies and build scripts
-└── README.md       # This file
+# Start demo server (builds automatically and serves on port 8080)
+./start-server.sh
+# OR manually:
+npm run build && python3 -m http.server 8080
 ```
 
-## 🛠️ Build Commands
+### Demo Pages
+- **Single Board Demo**: http://localhost:8080/index.html
+- **Million Board Demo**: http://localhost:8080/million-go.html  
+- **Test Page**: http://localhost:8080/test.html
 
-- `npm run build` - Build both JS and CSS
-- `npm run build:js` - Build JavaScript only
-- `npm run build:css` - Build CSS from SCSS only
+## Architecture Overview
 
-## 🎮 How to Play
+### Core System Architecture
+The project uses a hybrid architecture combining the legacy Tenuki Go library with a modern multi-layer rendering system:
 
-1. **Click intersections** to place stones
-2. **Players alternate** automatically (Black starts)
-3. **Capture stones** by surrounding them
-4. **Use controls** - Pass, Undo, New Game
-5. **Change board size** - 9×9, 13×13, or 19×19
+```
+MillionGo (Main Controller)
+├── ViewportManager - Camera position, zoom, coordinate transformations
+├── BoardPool - Tenuki instance management with LRU caching  
+├── HybridRenderer - 4-layer LOD rendering system
+├── StateCache - Board state persistence and activity simulation
+└── NetworkManager - WebSocket integration foundation
+```
 
-## 🔗 Integration Ready
+### Multi-Layer Rendering System
+The rendering system uses 4 distinct layers based on zoom level and distance:
 
-This Tenuki library provides:
+1. **Layer 1: Active Boards** (Zoom ≥ 0.5x, 0-2 boards from center)
+   - Full Tenuki DOM instances with complete interactivity
+   - Maximum detail with shadows, animations
 
-- **JavaScript API**: `tenuki.Game`, `tenuki.Client`, `tenuki.utils`
-- **CSS Styling**: Professional Go board appearance
-- **DOM/SVG Rendering**: Multiple rendering options
-- **Event System**: Game state change notifications
-- **Memory Efficient**: Optimized for performance
+2. **Layer 2: Near Boards** (Zoom ≥ 0.5x, 3-8 boards from center)  
+   - Canvas sprites with simplified stone representations
+   - Click to promote to Layer 1
 
-Perfect for integration into the **One Million Go** project as individual board components within the 1000×1000 grid system.
+3. **Layer 3: Regional View** (Zoom ≥ 0.1x, up to 50 boards)
+   - Colored pixels showing board activity states
+   - Heat map visualization
 
-## 📊 Technical Details
+4. **Layer 4: Global View** (Zoom < 0.1x, all boards)
+   - Aggregated activity patterns
+   - Regional cluster visualization
 
-- **Library Size**: ~50KB minified
-- **CSS Size**: ~15KB compressed  
-- **Board Memory**: <100 bytes per board instance
-- **Rendering**: DOM-based with CSS transforms
-- **Browser Support**: Modern browsers with ES6+
+### Memory Management
+- **Board Pool**: Maintains 20-70 Tenuki instances maximum
+- **Active Boards**: 5×5 matrix (25 boards) around camera center
+- **Buffer Boards**: Additional 40 boards for smooth transitions
+- **State Caching**: LRU cache for inactive board states
+- **Total Memory**: ~3.5MB for entire 1M board system
 
-## 🏗️ Architecture
+### Coordinate Systems
+- **Board Grid**: (0,0) to (999,999) - 1M board coordinate space
+- **Screen Space**: Pixel coordinates for rendering
+- **Camera Space**: Floating point board positions for smooth movement
+- **Minimap Space**: Normalized 0-1 coordinates
 
-The library uses:
-- **Webpack** for JavaScript bundling
-- **Sass** for CSS compilation  
-- **Babel** for ES6+ transpilation
-- **UMD** module format for universal compatibility
+## Build System
 
-## 🎯 Next Steps
+### Webpack Configuration
+- **Entry**: `index.js` (Tenuki library export)
+- **Output**: `build/tenuki.js` (UMD format for universal compatibility)
+- **Transpilation**: Babel with @babel/preset-env
+- **Mode**: Development with source maps
 
-Ready to integrate into **One Million Go**:
-1. Use `tenuki.Game` instances for individual boards
-2. Connect to your WebSocket multiplayer layer
-3. Integrate with the 1000×1000 grid management system
-4. Add cross-board gameplay mechanics
+### Sass Compilation  
+- **Source**: `scss/` directory
+- **Output**: `build/` directory
+- **Style**: Compressed for production
 
----
+## Testing
+- **Framework**: Mocha with Chai assertions
+- **Source Maps**: Enabled for debugging
+- **Helpers**: Located in `test/helpers.js`
+- **Run Command**: `npm test`
 
-**Status**: ✅ **FULLY OPERATIONAL** - Legacy code successfully restored and modernized!
+## File Structure Patterns
+
+### Core Tenuki Library (`src/`)
+- `game.js` - Main game logic and rules engine
+- `client.js` - Player interaction and move handling  
+- `*-renderer.js` - DOM/SVG rendering implementations
+- `board-state.js`, `intersection.js`, `region.js` - Game state management
+- `ruleset.js`, `scorer.js` - Go rules and scoring logic
+
+### Million Go Extensions (`js/`)
+- `hybrid-renderer.js` - Multi-layer rendering controller
+- `board-pool.js` - Tenuki instance pool management
+- `viewport-manager.js` - Camera and coordinate system
+- `state-cache.js` - Board state persistence with LRU
+- `network-manager.js` - WebSocket integration foundation
+
+### Styling (`scss/`)
+- Component-specific SCSS files for different renderers
+- Compiled to `build/` directory via Sass
+
+## Development Notes
+
+Project successfully works in one instantiation, but fails while scaling with
+> broken UI while rendering
+> being hyper memory extensive*
+
+Ideal goal is to create a system as described below.
+1. Hybrid Rendering Strategy
+Visible Boards: Use full Tenuki instances (6-10 boards max)
+Near-Visible: Simplified canvas sprites (50-100 boards)
+Far Away: Just metadata dots on minimap (999,900+ boards)
+Key Insight: Nobody needs to see all 1M boards at once in detail
+
+2. Lazy board instantiation
+Current: Each Tenuki board = ~100KB memory
+1M boards × 100KB = 100GB ❌ Impossible
+
+Solution: Only instantiate boards when:
+- Player navigates near them
+- Board has active stones
+- Board is in viewport buffer zone
+
+3. Server-Side State Management
+Backend holds truth: All 1M board states in compressed format
+Client holds cache: Only ~100 active board states
+WebSocket sync: Stream board updates as needed
+Delta updates: Only send changes, not full states
+
+Server will eventually be hosted on AWS. But before hosting, we need to manually check how much memoryis being consumed. Our ideal goal is to run all this in a single process.
+
+### Technical Implementation Strategy
+## Frontend Architecture
+1. Virtual Grid System
+Canvas-based viewport (2000×1200px)
+Virtual coordinate system (0,0) to (999,999)
+Quadtree spatial indexing for efficient lookups
+
+2. Board Pooling*
+Reuse Tenuki instances like object pooling, but just the boards with no changes made in the board state
+Max 9 Tenuki instances in memory (use them in 3 by 3 matrix format with themiddle one attached to the screen)
+Swap board states in/out as user navigates
+
+3. Progressive Loading
+Load boards in concentric rings from viewport center
+Priority queue based on:
+Distance from viewport
+Board activity level
+Player interaction history
+
+## Scaling Plan
+For detailed information on how to scale this project to handle millions of concurrent users, see the [SCALING-PLAN.md](SCALING-PLAN.md) document. This document outlines the complete architecture for both frontend and backend scaling, including zone-based distribution, memory optimization, and protocol improvements.
+
+
+
+### Performance Considerations
+- Maintains 60 FPS during navigation across the full grid
+- Viewport culling ensures only visible elements are rendered
+- Predictive loading based on camera movement direction
+- Automatic memory cleanup for distant boards
+
+### Coordinate Transformations
+The ViewportManager handles complex coordinate transformations between different spaces. Always use the provided methods rather than manual calculations.
+
+### Board State Management
+Board states are automatically cached when boards become inactive and restored when they become active again. The system handles this transparently.
+
+### Network Integration
+The NetworkManager provides stubs for WebSocket integration. When implementing multiplayer features, replace the stub methods with actual WebSocket communication.

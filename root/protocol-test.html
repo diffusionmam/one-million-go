@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Message Protocol Test</title>
+    <style>
+        body { font-family: monospace; margin: 20px; }
+        .log { background: #f0f0f0; padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .sent { background: #e8f4fd; }
+        .received { background: #e8f8e8; }
+        .error { background: #ffe6e6; }
+        button { margin: 5px; padding: 10px; }
+    </style>
+</head>
+<body>
+    <h1>One Million Go - Message Protocol Test</h1>
+    
+    <div>
+        <button onclick="connect()">Connect</button>
+        <button onclick="testFetchBoard()">Test Fetch Board</button>
+        <button onclick="testSendMove()">Test Send Move</button>
+        <button onclick="testFetchRegion()">Test Fetch Region</button>
+        <button onclick="disconnect()">Disconnect</button>
+    </div>
+    
+    <div id="status">Not connected</div>
+    <div id="log"></div>
+    
+    <script>
+        let ws = null;
+        let messageId = 1;
+        
+        function log(message, type = 'log') {
+            const div = document.createElement('div');
+            div.className = `log ${type}`;
+            div.textContent = new Date().toLocaleTimeString() + ' - ' + message;
+            document.getElementById('log').appendChild(div);
+            console.log(message);
+        }
+        
+        function connect() {
+            log('Connecting to ws://localhost:8080/ws');
+            ws = new WebSocket('ws://localhost:8080/ws');
+            
+            ws.onopen = function() {
+                document.getElementById('status').textContent = 'Connected ✅';
+                log('Connected to backend server', 'received');
+            };
+            
+            ws.onmessage = function(event) {
+                try {
+                    const message = JSON.parse(event.data);
+                    log('Received: ' + message.type + ' (id: ' + message.id + ')', 'received');
+                    log('Data: ' + JSON.stringify(message.data, null, 2), 'received');
+                } catch(e) {
+                    log('Failed to parse message: ' + event.data, 'error');
+                }
+            };
+            
+            ws.onclose = function() {
+                document.getElementById('status').textContent = 'Disconnected ❌';
+                log('Connection closed', 'error');
+            };
+            
+            ws.onerror = function(error) {
+                log('WebSocket error: ' + error, 'error');
+            };
+        }
+        
+        function sendMessage(type, data) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                log('Not connected!', 'error');
+                return;
+            }
+            
+            const message = {
+                id: 'test_' + messageId++,
+                type: type,
+                timestamp: Date.now(),
+                data: data
+            };
+            
+            log('Sending: ' + type + ' (id: ' + message.id + ')', 'sent');
+            log('Data: ' + JSON.stringify(data, null, 2), 'sent');
+            ws.send(JSON.stringify(message));
+        }
+        
+        function testFetchBoard() {
+            sendMessage('FETCH_BOARD', {
+                boardX: 500,
+                boardY: 750
+            });
+        }
+        
+        function testSendMove() {
+            sendMessage('SEND_MOVE', {
+                boardX: 500,
+                boardY: 750,
+                position: 185,  // Center of 19x19 board
+                player: 'black'
+            });
+        }
+        
+        function testFetchRegion() {
+            sendMessage('FETCH_REGION', {
+                startX: 498,
+                startY: 748,
+                width: 5,
+                height: 5
+            });
+        }
+        
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+        }
+        
+        // Auto-connect on page load
+        window.onload = function() {
+            setTimeout(connect, 500);
+        };
+    </script>
+</body>
+</html>

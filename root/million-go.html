@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>One Million Go - Massively Multiplayer Go</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #1a1a1a;
+            color: #fff;
+            overflow: hidden;
+        }
+        
+        #app-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            background: #2a2a2a;
+        }
+        
+        #viewport-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            background: #000;
+            cursor: grab;
+        }
+        
+        #viewport-canvas:active {
+            cursor: grabbing;
+        }
+        
+        #boards-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+        
+        .active-board {
+            position: absolute;
+            pointer-events: auto;
+            border: 1px solid #444;
+            border-radius: 4px;
+            background: #f5f5dc;
+            width: 150px !important;
+            height: 150px !important;
+            overflow: hidden;
+        }
+        
+        .active-board .tenuki-board {
+            width: 100% !important;
+            height: 100% !important;
+            transform: none !important;
+        }
+        
+        .board-coordinates {
+            position: absolute;
+            top: -20px;
+            left: 0;
+            font-size: 10px;
+            color: #ccc;
+            pointer-events: none;
+        }
+        
+        #minimap {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 200px;
+            height: 200px;
+            border: 2px solid #444;
+            background: #111;
+            cursor: pointer;
+        }
+        
+        #info-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.8);
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            z-index: 100;
+        }
+        
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.8);
+            padding: 10px;
+            border-radius: 4px;
+            z-index: 100;
+        }
+        
+        .control-group {
+            margin-bottom: 10px;
+        }
+        
+        button {
+            background: #007cba;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            margin: 2px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+        
+        button:hover {
+            background: #005a8b;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        
+        .status-active { background: #00ff00; }
+        .status-loading { background: #ffff00; }
+        .status-cached { background: #0088ff; }
+        .status-empty { background: #666; }
+    </style>
+    <link rel="stylesheet" href="build/dom-renderer.css">
+    <link rel="stylesheet" href="build/renderer-cancel-button.css">
+</head>
+<body>
+    <div id="app-container">
+        <!-- Main viewport canvas for background rendering -->
+        <canvas id="viewport-canvas"></canvas>
+        
+        <!-- Container for active Tenuki board instances -->
+        <div id="boards-container"></div>
+        
+        <!-- Minimap for global overview -->
+        <canvas id="minimap"></canvas>
+        
+        <!-- Info panel -->
+        <div id="info-panel">
+            <div><strong>One Million Go</strong></div>
+            <div>Camera: <span id="camera-pos">(500, 500)</span></div>
+            <div>Zoom: <span id="zoom-level">1.0x</span></div>
+            <div>Active Boards: <span id="active-count">0</span>/25</div>
+            <div>Buffer Boards: <span id="buffer-count">0</span></div>
+            <div>Cached Boards: <span id="cached-count">0</span></div>
+            <div>Network: <span class="status-indicator status-empty"></span><span id="network-status">Disconnected</span></div>
+        </div>
+        
+        <!-- Controls -->
+        <div id="controls">
+            <div class="control-group">
+                <strong>Navigation:</strong><br>
+                <button onclick="millionGo.moveCamera(-1, 0)">◀</button>
+                <button onclick="millionGo.moveCamera(1, 0)">▶</button>
+                <button onclick="millionGo.moveCamera(0, -1)">▲</button>
+                <button onclick="millionGo.moveCamera(0, 1)">▼</button>
+            </div>
+            <div class="control-group">
+                <strong>Zoom:</strong><br>
+                <button onclick="millionGo.setZoom(2.0)">2x</button>
+                <button onclick="millionGo.setZoom(0.5)">0.5x</button>
+            </div>
+            <div class="control-group">
+                <strong>Quick Nav:</strong><br>
+                <button onclick="millionGo.jumpToRegion(0, 0)">Origin</button>
+                <button onclick="millionGo.jumpToRegion(500, 500)">Center</button>
+                <button onclick="millionGo.jumpToRegion(999, 999)">End</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load Tenuki library -->
+    <script src="build/tenuki.js"></script>
+    
+    <script>
+        // Core One Million Go System
+        class MillionGo {
+            constructor() {
+                this.initializeSystem();
+            }
+            
+            async initializeSystem() {
+                console.log('🎮 Initializing One Million Go...');
+                
+                // Core system components
+                this.viewport = new ViewportManager();
+                this.boardPool = new BoardPool();
+                this.renderer = new HybridRenderer();
+                this.stateCache = new StateCache();
+                this.networkManager = new NetworkManager();
+                
+                // Initialize components
+                await this.viewport.initialize();
+                await this.boardPool.initialize();
+                await this.renderer.initialize();
+                await this.stateCache.initialize();
+                
+                // Set up event handlers
+                this.setupEventHandlers();
+                
+                // Start render loop
+                this.startRenderLoop();
+                
+                console.log('✅ One Million Go initialized successfully!');
+                this.updateUI();
+            }
+            
+            setupEventHandlers() {
+                const canvas = document.getElementById('viewport-canvas');
+                const minimap = document.getElementById('minimap');
+                
+                // Canvas mouse/keyboard events
+                canvas.addEventListener('mousedown', (e) => this.onMouseDown(e));
+                canvas.addEventListener('mousemove', (e) => this.onMouseMove(e));
+                canvas.addEventListener('mouseup', (e) => this.onMouseUp(e));
+                canvas.addEventListener('wheel', (e) => this.onWheel(e));
+                canvas.addEventListener('click', (e) => this.onCanvasClick(e));
+                
+                // Minimap navigation
+                minimap.addEventListener('click', (e) => this.onMinimapClick(e));
+                
+                // Keyboard navigation
+                window.addEventListener('keydown', (e) => this.onKeyDown(e));
+                
+                // Window resize
+                window.addEventListener('resize', () => this.onResize());
+                this.onResize(); // Initial resize
+            }
+            
+            onMouseDown(e) {
+                this.isDragging = true;
+                this.lastMousePos = { x: e.clientX, y: e.clientY };
+            }
+            
+            onMouseMove(e) {
+                if (this.isDragging) {
+                    const deltaX = e.clientX - this.lastMousePos.x;
+                    const deltaY = e.clientY - this.lastMousePos.y;
+                    
+                    // Move camera (negative delta for natural scrolling)
+                    this.viewport.moveCamera(-deltaX / 100, -deltaY / 100);
+                    this.lastMousePos = { x: e.clientX, y: e.clientY };
+                    
+                    this.updateUI();
+                }
+            }
+            
+            onMouseUp(e) {
+                this.isDragging = false;
+            }
+            
+            onWheel(e) {
+                e.preventDefault();
+                
+                if (e.ctrlKey) {
+                    // Zoom
+                    const zoomDelta = e.deltaY > 0 ? 0.9 : 1.1;
+                    this.viewport.zoom *= zoomDelta;
+                    this.viewport.zoom = Math.max(0.05, Math.min(2.0, this.viewport.zoom));
+                } else {
+                    // Pan
+                    this.viewport.moveCamera(e.deltaX / 1000, e.deltaY / 1000);
+                }
+                
+                this.updateUI();
+            }
+            
+            onCanvasClick(e) {
+                // Convert screen coordinates to board coordinates
+                const rect = e.target.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                const boardCoords = this.viewport.screenToBoard(x, y);
+                console.log(`Clicked on board region: (${Math.floor(boardCoords.x)}, ${Math.floor(boardCoords.y)})`);
+                
+                // Try to interact with board at this position
+                this.interactWithBoard(Math.floor(boardCoords.x), Math.floor(boardCoords.y), e);
+            }
+            
+            onMinimapClick(e) {
+                const rect = e.target.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                // Convert minimap coordinates to board coordinates
+                const boardX = (x / rect.width) * 1000;
+                const boardY = (y / rect.height) * 1000;
+                
+                this.jumpToRegion(boardX, boardY);
+            }
+            
+            onKeyDown(e) {
+                switch(e.code) {
+                    case 'ArrowLeft':
+                        e.preventDefault();
+                        this.moveCamera(-1, 0);
+                        break;
+                    case 'ArrowRight':
+                        e.preventDefault();
+                        this.moveCamera(1, 0);
+                        break;
+                    case 'ArrowUp':
+                        e.preventDefault();
+                        this.moveCamera(0, -1);
+                        break;
+                    case 'ArrowDown':
+                        e.preventDefault();
+                        this.moveCamera(0, 1);
+                        break;
+                }
+            }
+            
+            onResize() {
+                const canvas = document.getElementById('viewport-canvas');
+                const minimap = document.getElementById('minimap');
+                
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                
+                this.viewport.setViewportSize(window.innerWidth, window.innerHeight);
+            }
+            
+            moveCamera(deltaX, deltaY) {
+                this.viewport.moveCamera(deltaX, deltaY);
+                this.updateUI();
+            }
+            
+            setZoom(zoom) {
+                this.viewport.zoom = zoom;
+                this.updateUI();
+            }
+            
+            jumpToRegion(x, y) {
+                this.viewport.setCameraPosition(x, y);
+                this.updateUI();
+            }
+            
+            async interactWithBoard(boardX, boardY, event) {
+                // Ensure this board is active
+                const board = await this.boardPool.getActiveBoard(boardX, boardY);
+                
+                if (board && board.element) {
+                    // Forward the click to the Tenuki board
+                    const boardElement = board.element;
+                    const rect = boardElement.getBoundingClientRect();
+                    
+                    // Create a synthetic click event for the board
+                    const syntheticEvent = new MouseEvent('click', {
+                        clientX: event.clientX,
+                        clientY: event.clientY,
+                        bubbles: true
+                    });
+                    
+                    boardElement.dispatchEvent(syntheticEvent);
+                }
+            }
+            
+            startRenderLoop() {
+                const render = () => {
+                    // Update boards based on current viewport
+                    this.boardPool.updateBoardsForViewport(this.viewport);
+                    
+                    // Render the scene
+                    this.renderer.render(this.viewport, this.boardPool, this.stateCache);
+                    
+                    requestAnimationFrame(render);
+                };
+                requestAnimationFrame(render);
+            }
+            
+            updateUI() {
+                document.getElementById('camera-pos').textContent = 
+                    `(${this.viewport.cameraX.toFixed(1)}, ${this.viewport.cameraY.toFixed(1)})`;
+                document.getElementById('zoom-level').textContent = 
+                    `${this.viewport.zoom.toFixed(2)}x`;
+                document.getElementById('active-count').textContent = 
+                    this.boardPool.getActiveCount();
+                document.getElementById('buffer-count').textContent = 
+                    this.boardPool.getBufferCount();
+                document.getElementById('cached-count').textContent = 
+                    this.stateCache.getCachedCount();
+            }
+        }
+        
+        // Initialize the system when page loads
+        let millionGo;
+        
+        document.addEventListener('DOMContentLoaded', async function() {
+            console.log('🚀 Starting One Million Go...');
+            millionGo = new MillionGo();
+        });
+    </script>
+    
+    <!-- Core system components - loaded in separate files for modularity -->
+    <script src="js/viewport-manager.js"></script>
+    <script src="js/board-pool.js"></script>
+    <script src="js/hybrid-renderer.js"></script>
+    <script src="js/state-cache.js"></script>
+    <script src="js/network-manager.js"></script>
+</body>
+</html> 
